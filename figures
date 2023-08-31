@@ -64,16 +64,18 @@ summary_stats %>%  write_csv("./summary_stats.csv")
 
 p1 <- exploratory_analysis %>% 
   count(n_versions) %>% 
-  filter(n > 10) %>% 
+  filter(n > 5) %>% 
   ggplot(aes(x = n_versions, y = n, fill = factor(n_versions))) +
   geom_col() +
   labs( y ="Count", 
         x = "preprint versions", 
-        title = "Preprint Versions") +
-  scale_fill_manual(values = qualitative_hcl(n = 8, palette = "set2")) +
+        title = "") +
+  scale_fill_grey() +
+ # scale_fill_manual(values = qualitative_hcl(n = 8, palette = "set2")) +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
   theme(plot.title = element_text(hjust = 0.5)) +
+  scale_x_continuous(breaks=seq(2,9,1)) +
   theme(legend.position = "none") #+
   ggsave("./figures/preprint_versions.png")
 
@@ -244,7 +246,7 @@ p9<- exploratory_analysis %>%
     theme(legend.position = "none") #+
   ggsave("./figures/preprint_refs_vlast.png")   
     
-# Patchwork
+# Patchwork ----
 
   p <-  p1+p2+p3+p4+p5+p6+p7+p8+p9+
     plot_layout(ncol = 2, guides = 'collect') + 
@@ -303,60 +305,14 @@ exploratory_analysis %>%
     theme(legend.position = "none") #+
   ggsave("./figures/preprint_table_diff.png") 
   
-# combine figs and tables and calculate changes ----
-plot_bar <- exploratory_analysis %>% 
-    mutate(table_figs_v1 = n_figs_v1 + n_tables_v1,
-           table_figs_vlast = n_figs_vlast + n_tables_vlast,
-           table_fig_difference = table_figs_vlast - table_figs_v1) %>%
-    count(table_fig_difference) %>% 
-   # filter(n > 1) %>% # to make the grpah more readable by removing extremes
-    ggplot(aes(x = table_fig_difference, y = n, fill = factor(table_fig_difference))) +
-    geom_col() +
-    labs( y ="Count (n>1)", 
-          x = "preprint fig/table difference (final-v1)", 
-          title = "Combinbed figs and tables changes between v1 and vlast") +
-    scale_fill_manual(values = qualitative_hcl(n = 79, palette = "set2")) +
-    theme_minimal() +
-    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-    theme(plot.title = element_text(hjust = 0.5)) +
-    theme(legend.position = "none") #+
-  ggsave("./figures/preprint_table_fig_diff.png")  
-  
-# Make interactive 
-  ggplotly(plot_bar)
-  
-## Scatterplot words v figs/tables ----
-  #plot_scatter <- 
-    exploratory_analysis %>% 
-    mutate(table_figs_v1 = n_figs_v1 + n_tables_v1,
-           table_figs_vlast = n_figs_vlast + n_tables_vlast,
-           table_fig_difference = table_figs_vlast - table_figs_v1,
-           word_difference = n_words_vlast - n_words_v1) %>% 
-    filter(word_difference <15000,
-           table_fig_difference <75) %>% 
-  ggplot(aes(x = table_fig_difference, y = word_difference, text = doi, color = doi)) +
-  geom_point(alpha=0.5) +
-  labs( y ="Wrod count difference (vlast-v1)", 
-        x = "fig/table difference (final-v1)", 
-        title = "Combinbed figs and tables changes between v1 and vlast") +
- #scale_fill_manual(values = qualitative_hcl(n = 79, palette = "set2")) +
-  scale_fill_continuous(type = "viridis") +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  theme(plot.title = element_text(hjust = 0.5)) +
-  theme(legend.position = "none") #+
-ggsave("./figures/preprint_table_fig_diff.png")  
-
-
-# Make interactive 
-ggplotly(plot_scatter, hoverinfo = text)
 
 ## 2D bin plot -----
-plot <-   exploratory_analysis %>% 
+#plot <- 
+exploratory_analysis %>% 
   mutate(table_figs_v1 = n_figs_v1 + n_tables_v1,
          table_figs_vlast = n_figs_vlast + n_tables_vlast,
          table_fig_difference = table_figs_vlast - table_figs_v1,
-         word_difference = n_words_vlast - n_words_v1) %>% 
+         word_difference = n_words_vlast - n_words_v1) %>% View()
   filter(word_difference <15000,
          table_fig_difference <75) %>% 
   ggplot(aes(x = table_fig_difference, y = word_difference)) +
@@ -399,3 +355,124 @@ exploratory_analysis %>%
       legend.margin = margin(4, 4, 4, 4)) #+
   ggsave("./figures/preprint_figs_v1.png")
   
+
+# combine figs and tables and calculate changes ----
+  exploratory_analysis_full <- exploratory_analysis %>% 
+    mutate(table_figs_v1 = n_figs_v1 + n_tables_v1,
+           table_figs_vlast = n_figs_vlast + n_tables_vlast,
+           word_difference = n_words_vlast - n_words_v1,
+           table_fig_difference = table_figs_vlast - table_figs_v1)
+  
+  exploratory_analysis_full_stats <- data.frame(unclass(summary(exploratory_analysis_full, na.rm=TRUE)),  # Convert summary to data frame
+                                                check.names = FALSE)
+  
+  exploratory_analysis_full_stats
+  
+  exploratory_analysis_full_stats %>%  write_csv("./summary_stats_diff.csv")   
+  
+# table_fig differences plot ----  
+plot_bar <- 
+    exploratory_analysis_full %>% 
+    mutate(table_fig_difference = case_when(
+      table_fig_difference >= 10 ~ "10+",
+      table_fig_difference <= -10 ~ "-10+",
+      T ~ as.character(table_fig_difference)),
+      table_fig_difference = factor(table_fig_difference,
+                                    levels = c( "-10+", "-9", "-8", "-7", "-6", "-5", "-4", "-3", "-2", "-1", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10+"),
+                                    labels = c("-10+", "-9", "-8", "-7", "-6", "-5", "-4", "-3", "-2", "-1", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10+"))) %>% 
+    count(table_fig_difference) %>% 
+    na.omit() %>% 
+    # filter(n > 1) %>% # to make the grpah more readable by removing extremes
+    ggplot(aes(x = table_fig_difference, y = n, fill = factor(table_fig_difference))) +
+    geom_col() +
+    labs( y ="Count", 
+          x = "preprint fig/table difference", 
+          title = "") +
+    scale_fill_grey() +
+    #   scale_fill_manual(values = qualitative_hcl(n = 79, palette = "set2")) +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    theme(plot.title = element_text(hjust = 0.5)) +
+    # scale_x_continuous(limits = c(-50, 100), breaks = c(-50, -25, -20, -15, -10, -5, 0, 5, 10, 15, 20, 25, 50, 100)) +
+    theme(legend.position = "none") #+
+  ggsave("./figures/preprint_table_fig_diff.png")  
+  
+  # Make interactive 
+  ggplotly(plot_bar)
+    
+# Scatterplot words v figs/tables ----
+  plot_scatter <- 
+    exploratory_analysis %>% 
+    mutate(table_figs_v1 = n_figs_v1 + n_tables_v1,
+           table_figs_vlast = n_figs_vlast + n_tables_vlast,
+           table_fig_difference = table_figs_vlast - table_figs_v1,
+           word_difference = n_words_vlast - n_words_v1) %>% 
+    filter(word_difference <15000,
+           table_fig_difference <75) %>% 
+    ggplot(aes(x = table_fig_difference, y = word_difference, text = doi, color = doi)) +
+    geom_point(alpha=0.3, size = 0.8, color = "black") +
+    labs( y ="Wrod count difference", 
+          x = "Combined figure & table difference", 
+          title = "") +
+    #scale_fill_manual(values = qualitative_hcl(n = 79, palette = "set2")) +
+    # scale_fill_continuous(type = "viridis") +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    theme(plot.title = element_text(hjust = 0.5)) +
+    theme(legend.position = "none") #+
+  ggsave("./figures/preprint_table_fig_diff.png")    
+  
+  
+# Make interactive 
+  ggplotly(plot_scatter, hoverinfo = text)
+
+  
+    
+# Bin data for word count differences ----
+## Define bins and give names
+tags <- c("[0-500)","[501-1000)", "[1001-1500)", "[1501-2000)", "[2001-2500)", "[2501-3000)","[3000-3500)", "[3501-4000)","[4001-4500)", "[4501-5000)", "[5001-7500)", "[7501-10000)", "[10001-15000)")
+
+## Select data
+exploratory_analysis_full <- exploratory_analysis_full %>% 
+#  select(word_difference) %>% 
+  mutate(word_diff_bin = case_when(
+    word_difference <= 500 ~ tags[1],
+    word_difference > 500 & word_difference <=1000 ~ tags[2],
+    word_difference > 1000 & word_difference <=1500 ~ tags[3],
+    word_difference > 1500 & word_difference <=2000 ~ tags[4],
+    word_difference > 2000 & word_difference <=2500 ~ tags[5],
+    word_difference > 2500 & word_difference <=3000 ~ tags[6],
+    word_difference > 3000 & word_difference <=3500 ~ tags[7],
+    word_difference > 3500 & word_difference <=4000 ~ tags[8],
+    word_difference > 4000 & word_difference <=4500 ~ tags[9],
+    word_difference > 4500 & word_difference <=5000 ~ tags[10],
+    word_difference > 5000 & word_difference <=7500 ~ tags[11],
+    word_difference > 7500 & word_difference <=10000 ~ tags[12],
+    word_difference > 1000 & word_difference <=15000 ~ tags[13],
+  )) 
+
+exploratory_analysis_full %>% count(word_diff_bin) %>% View()
+  
+word_plot <- exploratory_analysis_full %>% 
+  count(word_diff_bin) %>% 
+  #filter(n > 1) %>% 
+  ggplot(aes(x = word_diff_bin, y = n, fill = factor(word_diff_bin))) +
+  geom_col() +
+  labs( y ="Count", 
+        x = "Word difference", 
+        title = "") +
+  scale_fill_grey() +
+  #scale_fill_manual(values = qualitative_hcl(n = 13, palette = "set2")) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  scale_x_discrete(limits = c("[0-500)","[501-1000)", "[1001-1500)", "[1501-2000)", "[2001-2500)", "[2501-3000)","[3000-3500)", "[3501-4000)","[4001-4500)", "[4501-5000)", "[5001-7500)", "[7501-10000)", "[10001-15000)")) +
+  theme(legend.position = "none") #+
+ggsave("./figures/preprint_word_diff_bin.png")  
+
+# Figure creation ----
+p <-  p1 + plot_bar + word_plot + plot_scatter +
+  plot_layout(ncol = 2, guides = 'collect') + 
+  plot_annotation(tag_levels =  "A") & theme(legend.position = 'none')
+
+p + ggsave("./figures/Figure_2.png", width = 10, height = 10)
